@@ -98,9 +98,9 @@ theorem fderiv_koszul_apply {ω : E → E [⋀^Fin (k + 1)]→L[ℝ] ℝ} {x : E
 
 theorem sum_neg_one_pow_smul_map_cons_removeNth (f : E [⋀^Fin (k + 1)]→L[ℝ] ℝ)
     (v : Fin (k + 1) → E) :
-    ∑ i : Fin (k + 1), (-1 : ℝ) ^ (i : ℕ) • f (Matrix.vecCons (v i) (i.removeNth v)) =
+    ∑ i : Fin (k + 1), (-1 : ℤ) ^ (i : ℕ) • f (Matrix.vecCons (v i) (i.removeNth v)) =
       ((k : ℝ) + 1) • f v := by
-  have h : ∀ i : Fin (k + 1), (-1 : ℝ) ^ (i : ℕ) • f (Matrix.vecCons (v i) (i.removeNth v)) =
+  have h : ∀ i : Fin (k + 1), (-1 : ℤ) ^ (i : ℕ) • f (Matrix.vecCons (v i) (i.removeNth v)) =
       f v := by
     intro i
     have := f.neg_one_pow_smul_map_insertNth i (v i) (i.removeNth v)
@@ -122,14 +122,14 @@ theorem extDeriv_koszul_add_koszul_extDeriv {ω : E → E [⋀^Fin (k + 1)]→L[
     extDeriv (koszul ω) x + koszul (extDeriv ω) x = ((k : ℝ) + 1) • ω x + fderiv ℝ ω x x := by
   ext v
   have hk := h.koszul
-  have e1 : extDeriv (koszul ω) x v = ∑ i : Fin (k + 1), (-1 : ℝ) ^ (i : ℕ) •
+  have e1 : extDeriv (koszul ω) x v = ∑ i : Fin (k + 1), (-1 : ℤ) ^ (i : ℕ) •
       ((fderiv ℝ ω x (v i)) (Matrix.vecCons x (i.removeNth v)) +
         ω x (Matrix.vecCons (v i) (i.removeNth v))) := by
     rw [extDeriv_apply hk]
     refine Finset.sum_congr rfl fun i _ => ?_
     rw [fderiv_continuousAlternatingMap_apply_const_apply hk, fderiv_koszul_apply h]
     rfl
-  have e2 : koszul (extDeriv ω) x v = fderiv ℝ ω x x v - ∑ i : Fin (k + 1), (-1 : ℝ) ^ (i : ℕ) •
+  have e2 : koszul (extDeriv ω) x v = fderiv ℝ ω x x v - ∑ i : Fin (k + 1), (-1 : ℤ) ^ (i : ℕ) •
       (fderiv ℝ ω x (v i)) (Matrix.vecCons x (i.removeNth v)) := by
     rw [koszul_apply_apply, extDeriv_apply h, Fin.sum_univ_succ]
     simp only [fderiv_continuousAlternatingMap_apply_const_apply h, Fin.val_zero, pow_zero,
@@ -140,7 +140,7 @@ theorem extDeriv_koszul_add_koszul_extDeriv {ω : E → E [⋀^Fin (k + 1)]→L[
   rw [ContinuousAlternatingMap.add_apply, ContinuousAlternatingMap.add_apply,
     ContinuousAlternatingMap.smul_apply, e1, e2]
   simp only [smul_add, Finset.sum_add_distrib, sum_neg_one_pow_smul_map_cons_removeNth]
-  simp only [smul_eq_mul]
+  simp only [zsmul_eq_mul, smul_eq_mul]
   ring
 
 /-- The homotopy formula in degree `0`: `(κ d f)ₓ = Df(x) x`. -/
