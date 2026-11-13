@@ -2,8 +2,9 @@
 
 `lake build` succeeds. There is no `sorry`, no `axiom` and no `native_decide` in the
 library; the headline theorems depend only on `propext`, `Classical.choice`, `Quot.sound`.
-About 3900 lines of Lean on Mathlib v4.35.0. Headline statements are collected in
-`FEEC/Main.lean`.
+About 5500 lines of Lean on Mathlib v4.35.0. Headline statements are collected in
+`FEEC/Main.lean`; the fully unconditional end-to-end result is
+`FEEC.Interval.interval_mixed_convergence` in `FEEC/Interval/Convergence.lean`.
 
 ## What is proved
 
@@ -26,6 +27,10 @@ About 3900 lines of Lean on Mathlib v4.35.0. Headline statements are collected i
 | `DeRham/L2Complex.lean` | weak exterior derivative, its uniqueness, `HΛᵏ(Ω)`; **the `L²` de Rham complex is a `HilbertComplex`** | §6.2 |
 | `DeRham/Classical.lean` | `δ` is the formal adjoint of `d`; `C¹` forms have weak `d` = `extDeriv`; polynomial forms lie in `HΛᵏ(Ω)` for bounded `Ω` | §6.2 |
 | `DeRham/Whitney.lean` | smooth forms in `HΛᵏ(Ω)` on bounded open `Ω`; `𝓟ᵣΛ` and `𝓟ᵣ⁻Λ` as `Subcomplex`es of the `L²` de Rham complex; Whitney forms `𝓟₁⁻Λᵏ` are finite-dimensional, their Galerkin problem is well posed, and the Whitney complex has no discrete harmonic forms in positive degree | §7.2–7.4 |
+| `Discrete/Lift.lean` | lifting a bounded projection through a surjective `d`: a cochain projection one degree down with norm `≤ 1 + c_P` | — |
+| `Interval/Scalar.lean` | weak derivatives on `(a,b)`, primitives, du Bois-Reymond, `u = c + ∫ₐˣ u′`, meshes, piecewise constants, `‖u − s‖ ≤ h‖u′‖` | — |
+| `Interval/Bridge.lean` | `L²Λ⁰, L²Λ¹` of an interval are isometric to `L²(a,b)`; weak `d` = weak derivative; no forms of degree `≥ 2` | §6.2 |
+| `Interval/Convergence.lean` | **end-to-end in 1D with no hypotheses**: the interval's de Rham complex is closed; mesh subcomplex (continuous `P₁` / `P₀`); cochain projection bounded uniformly in the mesh; quasi-optimality; `O(h)` convergence of the mixed method for `−u″ = f` | Thm 5.5 instantiated |
 
 ## Deviations from the plan / things to know
 
@@ -39,6 +44,15 @@ About 3900 lines of Lean on Mathlib v4.35.0. Headline statements are collected i
 * `IsGenSolution.norm_le` in `HodgeLaplace.lean` uses `set_option maxHeartbeats 1600000`;
   it should be split into smaller lemmas. `whitney_harmonic_eq_bot` uses 400000.
 * Linter warnings (unused simp arguments, deprecated names, long lines) have not been cleaned.
+
+## What "unconditional" covers
+
+`interval_mixed_convergence`: for every mesh `M` of `(a,b)` and data `f = ⋆φ`, `φ ∈ H¹`,
+`‖σ − σh‖_{H¹} + ‖u − uh‖_{L²} + ‖p − ph‖ ≤ C · M.size · ‖φ‖_{H¹}` with `C` depending only on
+`(a,b)`. Existence of both solutions is `exists_isSolution` / `exists_discrete_isSolution`.
+This is one space dimension, lowest order, the 1-form (Dirichlet mixed) problem only. In
+dimension `n ≥ 2` the closedness of the complex and the bounded cochain projections remain
+hypotheses.
 
 ## Not done (see `docs/plan/00-overview.md`)
 

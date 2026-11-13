@@ -472,6 +472,46 @@ theorem IsSolution.hasWeakDeriv {f : L2Form (Ioo a b) 1} {σ : HΛ (Ioo a b) 0}
 
 /-! ### Convergence -/
 
+theorem sub_self_mem {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (K : Submodule ℝ E) (u : E) : u - u ∈ K := by
+  rw [sub_self]; exact K.zero_mem
+
+theorem eq_zero_of_mem_harmonic {p : HΛ (Ioo a b) 1}
+    (hp : p ∈ ((intervalComplex a b).segment 0).harmonic) : p = 0 := by
+  rw [harmonic_eq_bot] at hp
+  exact (Submodule.mem_bot ℝ).1 hp
+
+theorem mem_coboundaries_all (u : HΛ (Ioo a b) 1) :
+    u ∈ ((intervalComplex a b).segment 0).coboundaries := by
+  obtain ⟨τ', hτ'⟩ := d_surjective u
+  exact ⟨τ', hτ'⟩
+
+theorem harmonic_approx (M : Mesh a b) :
+    ∀ r ∈ ((intervalComplex a b).segment 0).harmonic,
+      ‖r - (meshProjection M).π (0 + 1) r‖ ≤ (0 : ℝ) * ‖r‖ := by
+  intro r hr
+  have : r = 0 := eq_zero_of_mem_harmonic hr
+  subst this
+  simp only [map_zero, sub_zero, norm_zero, mul_zero, le_refl]
+
+theorem galerkin_aux (M : Mesh a b) {c : ℝ}
+    (hc : ((intervalComplex a b).segment 0).HasPoincareConst c)
+    {f : L2Form (Ioo a b) 1} {σ : HΛ (Ioo a b) 0} {u p : HΛ (Ioo a b) 1}
+    (h : ((intervalComplex a b).segment 0).IsSolution f σ u p)
+    {σh : (meshSubcomplex M).carrier 0} {uh ph : (meshSubcomplex M).carrier 1}
+    (hh : ((meshSubcomplex M).segment 0).toShort.IsSolution f σh uh ph)
+    (τ : (meshSubcomplex M).carrier 0) (v : (meshSubcomplex M).carrier 1) :
+    ‖σ - σh‖ + ‖u - uh‖ + ‖p - ph‖ ≤ errorConst c (1 + c) *
+      (‖σ - τ‖ + ‖u - v‖ + ‖p - ((0 : (meshSubcomplex M).carrier 1) : HΛ (Ioo a b) 1)‖ +
+        (0 : ℝ) * ‖u - ((0 : (meshSubcomplex M).carrier 1) : HΛ (Ioo a b) 1)‖) :=
+  HilbertComplex.galerkin_error_estimate (meshProjection M) 0 hc
+    (norm_meshProjection_le M hc) (μ := 0) le_rfl (harmonic_approx M) h hh
+    (mem_coboundaries_all u) (sub_self_mem _ u) τ v 0 0
+
+theorem real_aux (A C x y z t : ℝ) (hz : z = 0) (h : A ≤ C * (x + y + z + 0 * t)) :
+    A ≤ C * (x + y) := by
+  rw [hz] at h; simpa using h
+
 /-- Quasi-optimality with an explicit Poincaré constant. -/
 theorem quasi_optimal_aux (M : Mesh a b) {c : ℝ}
     (hc : ((intervalComplex a b).segment 0).HasPoincareConst c)
@@ -481,28 +521,11 @@ theorem quasi_optimal_aux (M : Mesh a b) {c : ℝ}
     (hh : ((meshSubcomplex M).segment 0).toShort.IsSolution f σh uh ph)
     (τ : (meshSubcomplex M).carrier 0) (v : (meshSubcomplex M).carrier 1) :
     ‖σ - σh‖ + ‖u - uh‖ + ‖p - ph‖ ≤ errorConst c (1 + c) * (‖σ - τ‖ + ‖u - v‖) := by
-  have hp : p = 0 := by
-    have := h.harmonic
-    rw [harmonic_eq_bot] at this
-    exact (Submodule.mem_bot ℝ).1 this
-  have hb : u ∈ ((intervalComplex a b).segment 0).coboundaries := by
-    obtain ⟨τ', hτ'⟩ := d_surjective u
-    exact ⟨τ', hτ'⟩
-  have hμ : ∀ r ∈ ((intervalComplex a b).segment 0).harmonic,
-      ‖r - (meshProjection M).π (0 + 1) r‖ ≤ (0 : ℝ) * ‖r‖ := by
-    intro r hr
-    rw [harmonic_eq_bot] at hr
-    have : r = 0 := (Submodule.mem_bot ℝ).1 hr
-    subst this
-    simp
-  have hub : u - u ∈ ((intervalComplex a b).segment 0).cocyclesᗮ := by
-    rw [sub_self]; exact Submodule.zero_mem _
-  have := HilbertComplex.galerkin_error_estimate (meshProjection M) 0 hc
-    (norm_meshProjection_le M hc) (μ := 0) le_rfl hμ h hh hb hub τ v 0 0
-  have e : p - ((0 : (meshSubcomplex M).carrier 1) : HΛ (Ioo a b) 1) = 0 := by
-    rw [hp]; exact sub_self _
-  rw [e, norm_zero, zero_mul, add_zero, add_zero] at this
-  exact this
+  have hp : p = 0 := eq_zero_of_mem_harmonic h.harmonic
+  have := galerkin_aux M hc h hh τ v
+  have h0 : ‖p - ((0 : (meshSubcomplex M).carrier 1) : HΛ (Ioo a b) 1)‖ = 0 := by
+    rw [Submodule.coe_zero, sub_zero, hp, norm_zero]
+  exact real_aux _ _ _ _ _ _ h0 this
 
 /-- **Quasi-optimality of the mixed finite element method on an interval**, with a constant
 independent of the mesh. -/
@@ -528,7 +551,7 @@ noncomputable def pc1 (s : L2I a b) : HΛ (Ioo a b) 1 :=
 theorem toL2_pc1 (s : L2I a b) : HΛ.toL2 (pc1 s) = s1.symm s := rfl
 
 theorem pc1_mem (M : Mesh a b) {s : L2I a b} (hs : s ∈ M.pcConst) : pc1 s ∈ M.pcForms := by
-  show s1 (HΛ.toL2 (pc1 s)) ∈ M.pcConst
+  change s1 (HΛ.toL2 (pc1 s)) ∈ M.pcConst
   rw [toL2_pc1, LinearIsometryEquiv.apply_symm_apply]
   exact hs
 
@@ -579,6 +602,52 @@ theorem errorConst_nonneg {c : ℝ} (hc : 0 ≤ c) : 0 ≤ errorConst c (1 + c) 
   have := stabilityConst_pos (c * (1 + c))
   positivity
 
+theorem hodgeStar_norm_le (φ : HΛ (Ioo a b) 0) : ‖hodgeStar (HΛ.toL2 φ)‖ ≤ ‖φ‖ := by
+  have : ‖hodgeStar (HΛ.toL2 φ)‖ = ‖HΛ.toL2 φ‖ := by
+    simp [hodgeStar]
+  rw [this]; exact norm_toL2_le φ
+
+theorem s1_hodgeStar (φ : HΛ (Ioo a b) 0) :
+    s1 (hodgeStar (HΛ.toL2 φ)) = s0 (HΛ.toL2 φ) := by
+  simp [hodgeStar]
+
+theorem norm_sigma_le {c : ℝ} (hc : ((intervalComplex a b).segment 0).HasPoincareConst c)
+    {φ σ : HΛ (Ioo a b) 0} {u p : HΛ (Ioo a b) 1}
+    (h : ((intervalComplex a b).segment 0).IsSolution (hodgeStar (HΛ.toL2 φ)) σ u p) :
+    ‖σ‖ + ‖u‖ + ‖p‖ ≤ stabilityConst c * ‖φ‖ := by
+  have hnorm : ‖σ‖ + ‖u‖ + ‖p‖ ≤ stabilityConst c * ‖hodgeStar (HΛ.toL2 φ)‖ :=
+    h.norm_le hc
+  exact hnorm.trans (mul_le_mul_of_nonneg_left (hodgeStar_norm_le φ) (stabilityConst_pos c).le)
+
+theorem approx_u (M : Mesh a b) {c : ℝ}
+    (hc : ((intervalComplex a b).segment 0).HasPoincareConst c)
+    {φ σ : HΛ (Ioo a b) 0} {u p : HΛ (Ioo a b) 1}
+    (h : ((intervalComplex a b).segment 0).IsSolution (hodgeStar (HΛ.toL2 φ)) σ u p) :
+    ∃ s ∈ M.pcConst, ‖u - pc1 s‖ ≤ M.size * (stabilityConst c * ‖φ‖) := by
+  have hwd := IsSolution.hasWeakDeriv h
+  have hσ : ‖σ‖ ≤ stabilityConst c * ‖φ‖ := by
+    have := norm_sigma_le hc h
+    linarith [norm_nonneg u, norm_nonneg p]
+  obtain ⟨s, hs, hsn⟩ := M.exists_pcConst_near hwd
+  refine ⟨s, hs, ?_⟩
+  rw [norm_sub_pc1]
+  refine hsn.trans ?_
+  rw [norm_neg, s0.norm_map]
+  exact mul_le_mul_of_nonneg_left ((norm_toL2_le σ).trans hσ) M.size_pos.le
+
+theorem approx_σ (M : Mesh a b) {c : ℝ}
+    (hc : ((intervalComplex a b).segment 0).HasPoincareConst c)
+    {φ σ : HΛ (Ioo a b) 0} {u p : HΛ (Ioo a b) 1}
+    (h : ((intervalComplex a b).segment 0).IsSolution (hodgeStar (HΛ.toL2 φ)) σ u p) :
+    ‖σ - meshπ₀ M σ‖ ≤ c * (M.size * ‖φ‖) := by
+  have hdσ := IsSolution.toL2_d_eq h
+  obtain ⟨s', hs', hs'n⟩ := M.exists_pcConst_near
+    ((hasWeakExtDeriv_iff _ _).1 φ.2 : HasWeakDeriv (s0 (HΛ.toL2 φ)) (s1 (HΛ.toL2 (HΛ.d φ))))
+  refine (norm_sub_meshπ₀_le M hc σ hs').trans ?_
+  rw [hdσ, s1_hodgeStar]
+  refine mul_le_mul_of_nonneg_left (hs'n.trans ?_) hc.nonneg
+  exact mul_le_mul_of_nonneg_left (by rw [s1.norm_map]; exact norm_toL2_d_le φ) M.size_pos.le
+
 /-- **Convergence of the mixed finite element method on an interval.** There is a constant
 `C`, depending only on the interval, such that for every mesh `M` of `(a, b)` with mesh size
 `h = M.size`, and every right-hand side `f = ⋆φ` with `φ ∈ H¹(a,b)`, the solution `(σ, u, p)`
@@ -598,53 +667,15 @@ theorem interval_mixed_convergence :
   obtain ⟨c, hc⟩ := (intervalComplex a b).exists_hasPoincareConst_segment
     intervalComplex_isClosed 0
   refine ⟨errorConst c (1 + c) * (c + stabilityConst c), fun M φ σ u p h σh uh ph hh => ?_⟩
-  have hc0 := hc.nonneg
-  have hst := stabilityConst_pos c
-  have hsz := M.size_pos
-  have hf : s1 (hodgeStar (HΛ.toL2 φ)) = s0 (HΛ.toL2 φ) := by
-    simp [hodgeStar]
-  have hfn : ‖hodgeStar (HΛ.toL2 φ)‖ ≤ ‖φ‖ := by
-    have : ‖hodgeStar (HΛ.toL2 φ)‖ = ‖HΛ.toL2 φ‖ := by
-      simp [hodgeStar]
-    rw [this]; exact norm_toL2_le φ
-  have hdσ := IsSolution.toL2_d_eq h
-  have hwd := IsSolution.hasWeakDeriv h
-  have hnorm := h.norm_le hc
-  have hσ : ‖σ‖ ≤ stabilityConst c * ‖φ‖ := by
-    have h1 : ‖σ‖ ≤ ‖σ‖ + ‖u‖ + ‖p‖ := by
-      linarith [norm_nonneg u, norm_nonneg p]
-    exact h1.trans (hnorm.trans (by gcongr))
-  -- approximation of `u`
-  obtain ⟨s, hs, hsn⟩ := M.exists_pcConst_near hwd
-  have hu : ‖u - pc1 s‖ ≤ M.size * (stabilityConst c * ‖φ‖) := by
-    rw [norm_sub_pc1]
-    refine hsn.trans ?_
-    rw [norm_neg, s0.norm_map]
-    gcongr
-    exact (norm_toL2_le σ).trans hσ
-  -- approximation of `σ`
-  obtain ⟨s', hs', hs'n⟩ := M.exists_pcConst_near
-    ((hasWeakExtDeriv_iff _ _).1 φ.2 : HasWeakDeriv (s0 (HΛ.toL2 φ)) (s1 (HΛ.toL2 (HΛ.d φ))))
-  have hσ' : ‖σ - meshπ₀ M σ‖ ≤ c * (M.size * ‖φ‖) := by
-    refine (norm_sub_meshπ₀_le M hc σ hs').trans ?_
-    rw [hdσ, hf]
-    gcongr
-    refine hs'n.trans ?_
-    gcongr
-    rw [s1.norm_map]
-    exact norm_toL2_d_le φ
-  have hq := quasi_optimal_aux M hc h hh ⟨meshπ₀ M σ, meshπ₀_mem M σ⟩
-    ⟨pc1 s, pc1_mem M hs⟩
+  obtain ⟨s, hs, hu⟩ := approx_u M hc h
+  have hσ' := approx_σ M hc h
+  have hq := quasi_optimal_aux M hc h hh ⟨meshπ₀ M σ, meshπ₀_mem M σ⟩ ⟨pc1 s, pc1_mem M hs⟩
   refine hq.trans ?_
-  have hsum : ‖σ - ((⟨meshπ₀ M σ, meshπ₀_mem M σ⟩ : (meshSubcomplex M).carrier 0) :
-        HΛ (Ioo a b) 0)‖ + ‖u - ((⟨pc1 s, pc1_mem M hs⟩ : (meshSubcomplex M).carrier 1) :
-        HΛ (Ioo a b) 1)‖ ≤ (c + stabilityConst c) * M.size * ‖φ‖ := by
-    have e1 : ‖σ - meshπ₀ M σ‖ ≤ c * (M.size * ‖φ‖) := hσ'
-    have e2 : ‖u - pc1 s‖ ≤ M.size * (stabilityConst c * ‖φ‖) := hu
-    calc _ ≤ c * (M.size * ‖φ‖) + M.size * (stabilityConst c * ‖φ‖) := add_le_add e1 e2
+  have hsum : ‖σ - meshπ₀ M σ‖ + ‖u - pc1 s‖ ≤ (c + stabilityConst c) * M.size * ‖φ‖ := by
+    calc _ ≤ c * (M.size * ‖φ‖) + M.size * (stabilityConst c * ‖φ‖) := add_le_add hσ' hu
       _ = _ := by ring
   calc _ ≤ errorConst c (1 + c) * ((c + stabilityConst c) * M.size * ‖φ‖) :=
-        mul_le_mul_of_nonneg_left hsum (errorConst_nonneg hc0)
+        mul_le_mul_of_nonneg_left hsum (errorConst_nonneg hc.nonneg)
     _ = _ := by ring
 
 end FEEC.Interval

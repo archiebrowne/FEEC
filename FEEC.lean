@@ -16,3 +16,7 @@ import FEEC.DeRham.L2Complex
 import FEEC.DeRham.Classical
 import FEEC.DeRham.Whitney
 import FEEC.Main
+import FEEC.Discrete.Lift
+import FEEC.Interval.Scalar
+import FEEC.Interval.Bridge
+import FEEC.Interval.Convergence
