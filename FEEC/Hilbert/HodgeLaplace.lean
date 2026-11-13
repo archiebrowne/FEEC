@@ -209,6 +209,21 @@ section Complete
 
 variable [CompleteSpace V₀] [CompleteSpace V₁]
 
+theorem hodge_real_aux {a s0 s1 nb nh nw np d A f nσ nu : ℝ} (ha0 : 0 < a) (ha1 : a ≤ 1)
+    (hA2 : a * A ≤ s0 ^ 2 / 2 + a * nb ^ 2 / 2) (hw2 : a * nw ^ 2 ≤ d ^ 2)
+    (hsum : f = s0 ^ 2 - a * A + a * nb ^ 2 + s1 ^ 2 + d ^ 2 + np ^ 2 + nh ^ 2)
+    (hσ : nσ ^ 2 = s0 ^ 2 + s1 ^ 2) (hu : nu ^ 2 = nb ^ 2 + nh ^ 2 + nw ^ 2) :
+    a * (nσ + nu + np) ^ 2 ≤ 6 * f := by
+  have h1 : 0 ≤ 1 - a := sub_nonneg.2 ha1
+  have key : a * (nσ ^ 2 + nu ^ 2 + np ^ 2) ≤ 2 * f := by
+    rw [hσ, hu]
+    nlinarith [mul_nonneg h1 (sq_nonneg s0), mul_nonneg h1 (sq_nonneg s1),
+      mul_nonneg h1 (sq_nonneg np), mul_nonneg h1 (sq_nonneg nh), mul_nonneg h1 (sq_nonneg nw),
+      mul_nonneg h1 (sq_nonneg nb)]
+  nlinarith [mul_nonneg ha0.le (sq_nonneg (nσ - nu)), mul_nonneg ha0.le (sq_nonneg (nσ - np)),
+    mul_nonneg ha0.le (sq_nonneg (nu - np))]
+
+set_option maxHeartbeats 1600000 in
 /-- **A priori estimate for the mixed Hodge Laplacian** (the inf-sup condition of Arnold,
 Theorem 4.9, in the form of a stability estimate). The constant depends only on the Poincaré
 constant. -/
@@ -244,7 +259,115 @@ theorem IsGenSolution.norm_le {c : ℝ} (hc : S.HasPoincareConst c)
   have hhu : ⟪S.ι₁ u, S.ι₁ (hh : V₁)⟫ = ‖(hh : V₁)‖ ^ 2 := by
     rw [hι, inner_add_left, inner_add_left, hbh, real_inner_comm (S.ι₁ (hh : V₁)) (S.ι₁ w), hhw,
       real_inner_self_eq_norm_sq, hnh]; ring
-  sorry
+  have hnp : ‖S.ι₁ (p : V₁)‖ = ‖(p : V₁)‖ := S.norm_eq_of_d₁_eq_zero hd1p
+  have hpp : ⟪S.ι₁ (S.d₀ σ), S.ι₁ (p : V₁)⟫ = 0 := S.inner_ι₁_d₀_harmonic p.2 σ
+  have hpp' : ⟪S.ι₁ (p : V₁), S.ι₁ (S.d₀ σ)⟫ = 0 := S.inner_ι₁_harmonic_d₀ p.2 σ
+  have hYc := real_inner_comm (S.ι₁ (p : V₁)) (S.ι₁ u)
+  obtain ⟨a, ha⟩ : ∃ a : ℝ, a = 1 / c' ^ 2 := ⟨_, rfl⟩
+  have ha0 : 0 < a := by rw [ha]; positivity
+  have hac : a * c' ^ 2 = 1 := by rw [ha]; field_simp
+  have hc2 : 1 ≤ c' ^ 2 := by nlinarith
+  have ha1 : a ≤ 1 := by nlinarith [mul_le_mul_of_nonneg_left hc2 ha0.le]
+  have hac1 : a * c' ≤ 1 := by
+    nlinarith [mul_le_mul_of_nonneg_left (show c' ≤ c' ^ 2 by nlinarith) ha0.le]
+  have E0 := h.eq₀ (σ - a • ρ)
+  have E1 := h.eq₁ (u + S.d₀ σ + (p : V₁))
+  have E2 := h.eq₂ (hh - p)
+  obtain ⟨f0, hf0⟩ : ∃ f, f = F₀ (σ - a • ρ) := ⟨_, rfl⟩
+  obtain ⟨f1, hf1⟩ : ∃ f, f = F₁ (u + S.d₀ σ + (p : V₁)) := ⟨_, rfl⟩
+  obtain ⟨f2, hf2⟩ : ∃ f, f = F₂ (hh - p) := ⟨_, rfl⟩
+  rw [← hf0] at E0
+  rw [← hf1] at E1
+  rw [← hf2] at E2
+  simp only [map_sub, map_add, map_smul, inner_add_right, inner_sub_right, inner_add_left,
+    inner_sub_left, real_inner_smul_right, real_inner_smul_left, hρ, S.d₁_d₀, hd1p,
+    inner_zero_right, add_zero, Submodule.coe_sub, real_inner_self_eq_norm_sq] at E0 E1 E2
+  -- real-number bookkeeping
+  have sqle : ∀ x y : ℝ, 0 ≤ y → x ^ 2 ≤ y ^ 2 → x ≤ y :=
+    fun x y hy h => (abs_le_of_sq_le_sq' h hy).2
+  have hnu_nonneg := norm_nonneg u
+  have hbu' : ‖b‖ ≤ ‖u‖ := sqle _ _ hnu_nonneg (by nlinarith [sq_nonneg ‖(hh : V₁)‖, sq_nonneg ‖w‖])
+  have hhu' : ‖(hh : V₁)‖ ≤ ‖u‖ :=
+    sqle _ _ hnu_nonneg (by nlinarith [sq_nonneg ‖b‖, sq_nonneg ‖w‖])
+  have hρ' : ‖ρ‖ ≤ c' * ‖b‖ := hρn
+  -- lower bound
+  have hA1 : ⟪S.ι₀ σ, S.ι₀ ρ⟫ ≤ ‖S.ι₀ σ‖ * (c' * ‖b‖) :=
+    calc ⟪S.ι₀ σ, S.ι₀ ρ⟫ ≤ ‖S.ι₀ σ‖ * ‖S.ι₀ ρ‖ := real_inner_le_norm _ _
+      _ ≤ ‖S.ι₀ σ‖ * ‖ρ‖ := by gcongr; exact S.norm_ι₀_le ρ
+      _ ≤ ‖S.ι₀ σ‖ * (c' * ‖b‖) := by gcongr
+  have hac2 : a ^ 2 * c' ^ 2 * ‖b‖ ^ 2 = a * ‖b‖ ^ 2 := by
+    rw [show a ^ 2 * c' ^ 2 * ‖b‖ ^ 2 = (a * c' ^ 2) * (a * ‖b‖ ^ 2) by ring, hac, one_mul]
+  have hA2 : a * ⟪S.ι₀ σ, S.ι₀ ρ⟫ ≤ ‖S.ι₀ σ‖ ^ 2 / 2 + a * ‖b‖ ^ 2 / 2 := by
+    nlinarith [sq_nonneg (‖S.ι₀ σ‖ - a * c' * ‖b‖), mul_le_mul_of_nonneg_left hA1 ha0.le]
+  have hw1 : ‖w‖ ≤ c' * ‖S.d₁ u‖ := by rw [hd1w]; exact hcp.le₁ w hw
+  have hw2 : a * ‖w‖ ^ 2 ≤ ‖S.d₁ u‖ ^ 2 := by
+    have h1 : ‖w‖ ^ 2 ≤ (c' * ‖S.d₁ u‖) ^ 2 := by gcongr
+    nlinarith [mul_le_mul_of_nonneg_left h1 ha0.le, sq_nonneg ‖S.d₁ u‖]
+  have hσ := S.norm_sq_V₀ σ
+  have hSum_lb : a * (‖σ‖ + ‖u‖ + ‖p‖) ^ 2 ≤ 6 * (f0 + f1 + f2) := by
+    rw [hnp, hpp, hpp'] at E1
+    rw [hhu] at E2
+    rw [hbu] at E0
+    have hnp' : ‖(p : V₁)‖ = ‖p‖ := rfl
+    refine hodge_real_aux (A := ⟪S.ι₀ σ, S.ι₀ ρ⟫) (s0 := ‖S.ι₀ σ‖) (s1 := ‖S.ι₁ (S.d₀ σ)‖)
+      (nb := ‖b‖) (nh := ‖(hh : V₁)‖) (nw := ‖w‖) (np := ‖p‖) (d := ‖S.d₁ u‖) ha0 ha1 hA2 hw2
+      ?_ hσ hnorm
+    rw [hnp'] at E1
+    linarith
+  -- upper bound
+  have hτ : ‖σ - a • ρ‖ ≤ ‖σ‖ + ‖u‖ + ‖p‖ := by
+    have : ‖σ - a • ρ‖ ≤ ‖σ‖ + a * ‖ρ‖ := by
+      calc ‖σ - a • ρ‖ ≤ ‖σ‖ + ‖a • ρ‖ := norm_sub_le _ _
+        _ = ‖σ‖ + a * ‖ρ‖ := by rw [norm_smul, Real.norm_of_nonneg ha0.le]
+    have h2 : a * ‖ρ‖ ≤ ‖b‖ := by
+      calc a * ‖ρ‖ ≤ a * (c' * ‖b‖) := by gcongr
+        _ = (a * c') * ‖b‖ := by ring
+        _ ≤ 1 * ‖b‖ := by gcongr
+        _ = ‖b‖ := one_mul _
+    linarith [norm_nonneg p]
+  have hv : ‖u + S.d₀ σ + (p : V₁)‖ ≤ ‖σ‖ + ‖u‖ + ‖p‖ := by
+    calc ‖u + S.d₀ σ + (p : V₁)‖ ≤ ‖u + S.d₀ σ‖ + ‖(p : V₁)‖ := norm_add_le _ _
+      _ ≤ ‖u‖ + ‖σ‖ + ‖p‖ := by
+        have h1 := S.norm_d₀_le σ
+        have h2 := norm_add_le u (S.d₀ σ)
+        have hpn : ‖(p : V₁)‖ = ‖p‖ := rfl
+        linarith
+      _ = _ := by ring
+  have hq : ‖hh - p‖ ≤ ‖σ‖ + ‖u‖ + ‖p‖ := by
+    calc ‖hh - p‖ ≤ ‖hh‖ + ‖p‖ := norm_sub_le _ _
+      _ ≤ ‖u‖ + ‖p‖ := by gcongr; exact hhu'
+      _ ≤ _ := by linarith [norm_nonneg σ]
+  have hF : f0 + f1 + f2 ≤
+      (‖F₀‖ + ‖F₁‖ + ‖F₂‖) * (‖σ‖ + ‖u‖ + ‖p‖) := by
+    have g0 : f0 ≤ ‖F₀‖ * (‖σ‖ + ‖u‖ + ‖p‖) :=
+      hf0 ▸ (Real.le_norm_self _).trans ((F₀.le_opNorm _).trans
+        (mul_le_mul_of_nonneg_left hτ (norm_nonneg _)))
+    have g1 : f1 ≤ ‖F₁‖ * (‖σ‖ + ‖u‖ + ‖p‖) :=
+      hf1 ▸ (Real.le_norm_self _).trans ((F₁.le_opNorm _).trans
+        (mul_le_mul_of_nonneg_left hv (norm_nonneg _)))
+    have g2 : f2 ≤ ‖F₂‖ * (‖σ‖ + ‖u‖ + ‖p‖) :=
+      hf2 ▸ (Real.le_norm_self _).trans ((F₂.le_opNorm _).trans
+        (mul_le_mul_of_nonneg_left hq (norm_nonneg _)))
+    linarith
+  -- conclusion
+  have hΦ : 0 ≤ ‖F₀‖ + ‖F₁‖ + ‖F₂‖ := by positivity
+  have hN : 0 ≤ ‖σ‖ + ‖u‖ + ‖p‖ := by positivity
+  rw [hstab]
+  rcases hN.eq_or_lt with h0 | hpos
+  · rw [← h0]; positivity
+  · have h6 : a * (‖σ‖ + ‖u‖ + ‖p‖) ≤ 6 * (‖F₀‖ + ‖F₁‖ + ‖F₂‖) := by
+      refine le_of_mul_le_mul_right ?_ hpos
+      calc a * (‖σ‖ + ‖u‖ + ‖p‖) * (‖σ‖ + ‖u‖ + ‖p‖)
+          = a * (‖σ‖ + ‖u‖ + ‖p‖) ^ 2 := by ring
+        _ ≤ 6 * (f0 + f1 + f2) := hSum_lb
+        _ ≤ 6 * ((‖F₀‖ + ‖F₁‖ + ‖F₂‖) * (‖σ‖ + ‖u‖ + ‖p‖)) := by linarith
+        _ = 6 * (‖F₀‖ + ‖F₁‖ + ‖F₂‖) * (‖σ‖ + ‖u‖ + ‖p‖) := by ring
+    have h7 : ‖σ‖ + ‖u‖ + ‖p‖ ≤ c' ^ 2 * (6 * (‖F₀‖ + ‖F₁‖ + ‖F₂‖)) := by
+      calc ‖σ‖ + ‖u‖ + ‖p‖ = c' ^ 2 * (a * (‖σ‖ + ‖u‖ + ‖p‖)) := by
+            rw [← mul_assoc, mul_comm (c' ^ 2) a, hac, one_mul]
+        _ ≤ _ := mul_le_mul_of_nonneg_left h6 (sq_nonneg c')
+    have h8 := mul_nonneg (sq_nonneg c') hΦ
+    linarith
 
 /-- Uniqueness for the general mixed problem. -/
 theorem IsGenSolution.unique {c : ℝ} (hc : S.HasPoincareConst c)
@@ -320,7 +443,7 @@ theorem exists_isGenSolution {c : ℝ} (hc : S.HasPoincareConst c)
     have h3 := GenSpace.norm_le_sum x
     have h4 : stabilityConst c * (‖B.comp (GenSpace.e₀ S)‖ + ‖-(B.comp (GenSpace.e₁ S))‖ +
         ‖-(B.comp (GenSpace.e₂ S))‖) ≤ stabilityConst c * (3 * ‖B‖) := by
-      gcongr; linarith
+      exact mul_le_mul_of_nonneg_left (by linarith) (stabilityConst_pos c).le
     have h5 : 3 * stabilityConst c * ‖B‖ = stabilityConst c * (3 * ‖B‖) := by ring
     linarith
   obtain ⟨x, hx, -⟩ := existsUnique_of_symm_of_bounded_below (GenSpace.form S)
@@ -368,10 +491,10 @@ theorem IsSolution.norm_le {c : ℝ} (hc : S.HasPoincareConst c) {f : W₁}
     ‖σ‖ + ‖u‖ + ‖p‖ ≤ stabilityConst c * ‖f‖ := by
   have hh := (S.isSolution_iff_isGenSolution (p := ⟨p, h.harmonic⟩)).1 h
   have := hh.norm_le hc
-  simp only [norm_zero, zero_add, add_zero, Submodule.coe_norm] at this
+  simp only [norm_zero, zero_add, add_zero, Submodule.norm_coe] at this
   calc ‖σ‖ + ‖u‖ + ‖p‖ ≤ stabilityConst c * ‖S.load f‖ := this
     _ ≤ stabilityConst c * ‖f‖ := by
-      gcongr; exact S.norm_load_le f
+      exact mul_le_mul_of_nonneg_left (S.norm_load_le f) (stabilityConst_pos c).le
 
 end Complete
 
