@@ -2,7 +2,7 @@
 
 `lake build` succeeds. There is no `sorry`, no `axiom` and no `native_decide` in the
 library; the headline theorems depend only on `propext`, `Classical.choice`, `Quot.sound`.
-About 3400 lines of Lean on Mathlib v4.35.0. Headline statements are collected in
+About 3900 lines of Lean on Mathlib v4.35.0. Headline statements are collected in
 `FEEC/Main.lean`.
 
 ## What is proved
@@ -25,6 +25,7 @@ About 3400 lines of Lean on Mathlib v4.35.0. Headline statements are collected i
 | `DeRham/Codifferential.lean` | codifferential `δ`, `δ² = 0`, test forms | §6.2 |
 | `DeRham/L2Complex.lean` | weak exterior derivative, its uniqueness, `HΛᵏ(Ω)`; **the `L²` de Rham complex is a `HilbertComplex`** | §6.2 |
 | `DeRham/Classical.lean` | `δ` is the formal adjoint of `d`; `C¹` forms have weak `d` = `extDeriv`; polynomial forms lie in `HΛᵏ(Ω)` for bounded `Ω` | §6.2 |
+| `DeRham/Whitney.lean` | smooth forms in `HΛᵏ(Ω)` on bounded open `Ω`; `𝓟ᵣΛ` and `𝓟ᵣ⁻Λ` as `Subcomplex`es of the `L²` de Rham complex; Whitney forms `𝓟₁⁻Λᵏ` are finite-dimensional, their Galerkin problem is well posed, and the Whitney complex has no discrete harmonic forms in positive degree | §7.2–7.4 |
 
 ## Deviations from the plan / things to know
 
@@ -36,17 +37,18 @@ About 3400 lines of Lean on Mathlib v4.35.0. Headline statements are collected i
   are no dimension counts.
 * `polyFormsMinus E r k` is Arnold's `𝓟⁻ᵣ₊₁Λᵏ` (index shift).
 * `IsGenSolution.norm_le` in `HodgeLaplace.lean` uses `set_option maxHeartbeats 1600000`;
-  it should be split into smaller lemmas.
+  it should be split into smaller lemmas. `whitney_harmonic_eq_bot` uses 400000.
 * Linter warnings (unused simp arguments, deprecated names, long lines) have not been cleaned.
 
 ## Not done (see `docs/plan/00-overview.md`)
 
 * Closedness of the `L²` de Rham complex (Poincaré inequality on Lipschitz domains): the
   de Rham well-posedness theorem `deRham_hodgeLaplace_wellPosed` takes it as a hypothesis.
-* Meshes, Whitney forms on a triangulation, degrees of freedom, unisolvence, and the
-  construction of bounded cochain projections: existence of a cochain projection is a
-  hypothesis of the discretisation theorems. In particular no concrete finite element
-  subcomplex of `deRhamComplex` is constructed (the polynomial spaces are shown to lie in
-  `HΛ` on a single bounded open set, but are not packaged as a `Subcomplex`).
+* Meshes and inter-element continuity, degrees of freedom, unisolvence, and the construction
+  of bounded cochain projections: existence of a cochain projection is a hypothesis of the
+  uniform stability and error estimate theorems, so these are not yet instantiated for a
+  concrete finite element space. `DeRham/Whitney.lean` treats a single element (a bounded
+  open set); Whitney forms are the space `𝓟₁⁻Λᵏ`, not the barycentric formula (Mathlib has
+  no wedge product of continuous alternating maps).
 * Improved error estimates (Arnold Thm 5.6), eigenvalue problems, the adjoint `d*` and the
   strong form of the Hodge Laplacian.

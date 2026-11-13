@@ -14,4 +14,5 @@ import FEEC.DeRham.Covector
 import FEEC.DeRham.Codifferential
 import FEEC.DeRham.L2Complex
 import FEEC.DeRham.Classical
+import FEEC.DeRham.Whitney
 import FEEC.Main
