@@ -51,13 +51,36 @@ About 5500 lines of Lean on Mathlib v4.35.0. Headline statements are collected i
 `‖σ − σh‖_{H¹} + ‖u − uh‖_{L²} + ‖p − ph‖ ≤ C · M.size · ‖φ‖_{H¹}` with `C` depending only on
 `(a,b)`. Existence of both solutions is `exists_isSolution` / `exists_discrete_isSolution`.
 This is one space dimension, lowest order, the 1-form (Dirichlet mixed) problem only. In
-dimension `n ≥ 2` the closedness of the complex and the bounded cochain projections remain
-hypotheses.
+dimension `n ≥ 2` bounded cochain projections remain hypotheses; closedness is proved on
+boxes (next section).
+
+## The `L²` Poincaré lemma on a box (plan: `docs/plan/05-poincare-lemma.md`)
+
+For `Ω = box e a b = {x | ∀ i, aᵢ < ⟪eᵢ, x⟫ < bᵢ}` (`e` an orthonormal basis of `E`,
+`aᵢ < bᵢ`), in any dimension and every degree, all in `DeRham/PoincareLemma.lean`:
+
+* `exists_hasWeakExtDeriv_of_closed`: every weakly closed `ω ∈ L²Λᵏ⁺¹(Ω)` is `dη` with
+  `‖η‖ ≤ C‖ω‖`.
+* `boxComplex_isClosed`: the `L²` de Rham complex of `Ω` is closed.
+* `box_harmonic_eq_bot`: no harmonic forms of degree `≥ 1`.
+* `box_hodgeLaplace_wellPosed`: the Hodge Laplace problem at level `k + 1` is well posed
+  with no hypothesis (and `p = 0`).
+
+Supporting files: `Wedge.lean` (exterior multiplication by a covector, anticommutation with
+contraction), `LineIntegral.lean`, `LineG.lean`, `LineL2.lean` (integrals along lines,
+compactly supported antiderivatives, an `L²` bound), `TestForm.lean`, `BoxHomotopy.lean`
+(the identity `δS + Sδ = 1 − Q` in one direction), `BoxBounds.lean`, `BoxDecomp.lean`
+(every test form of positive degree is `δψ + χ` with `‖χ‖ ≤ C‖δφ‖`).
+
+Limits: boxes only, not general star-shaped or Lipschitz domains. The level-0 problem
+(`segmentZero`) is covered by closedness through the general theorem
+`hodgeLaplace_wellPosed_zero`, but is not restated for boxes, and `ker d` on `HΛ⁰` is not
+identified with the constants. The Poincaré constant is not explicit.
 
 ## Not done (see `docs/plan/00-overview.md`)
 
-* Closedness of the `L²` de Rham complex (Poincaré inequality on Lipschitz domains): the
-  de Rham well-posedness theorem `deRham_hodgeLaplace_wellPosed` takes it as a hypothesis.
+* Closedness of the `L²` de Rham complex on domains other than boxes (star-shaped,
+  Lipschitz): there `deRham_hodgeLaplace_wellPosed` still takes it as a hypothesis.
 * Meshes and inter-element continuity, degrees of freedom, unisolvence, and the construction
   of bounded cochain projections: existence of a cochain projection is a hypothesis of the
   uniform stability and error estimate theorems, so these are not yet instantiated for a
