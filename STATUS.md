@@ -77,11 +77,35 @@ Limits: boxes only, not general star-shaped or Lipschitz domains. The level-0 pr
 `hodgeLaplace_wellPosed_zero`, but is not restated for boxes, and `ker d` on `HΛ⁰` is not
 identified with the constants. The Poincaré constant is not explicit.
 
+## Tensor-product finite elements on a box (plan: `docs/plan/06-tensor-fem.md`)
+
+`Tensor/Main.lean`, `box_tensor_galerkin`: for a box `Ω = box e a b` in any dimension `n`,
+any degree `k + 1`, there is `C` (depending on the box and `k`, **not on the mesh**) such
+that for every tensor-product grid (`N i ≥ 1` equal cells in direction `i`) and every
+`f ∈ L²Λᵏ⁺¹(Ω)`, the Galerkin problem for the Hodge Laplacian in the tensor-product Whitney
+spaces `Q₁⁻Λ` (`Tensor.subcomplex`; lowest-order Raviart–Thomas on boxes for `k = n − 1`)
+has a unique solution with `‖σh‖ + ‖uh‖ + ‖ph‖ ≤ C‖f‖`, and
+`‖σ − σh‖ + ‖u − uh‖ + ‖p − ph‖ ≤ C (‖σ − τ‖ + ‖u − v‖)` for all discrete `τ`, `v`.
+No hypothesis: closedness is the Poincaré lemma on the box, and the bounded cochain projection
+`Tensor.projection` is constructed (`exists_norm_projection_le`: bound depends only on `n`).
+
+Ingredients: `Discrete/DualSystem.lean` (cochain projections from biorthogonal shape/dual
+families), `DeRham/BasisCovector.lean` (adjointness of `∧` and `⌟`, basis covectors,
+resolution of the identity), `Tensor/Ref1D*.lean` (1D hats, cell indicators, smooth dual
+functions, biorthogonality, Schur sums), `Tensor/BoxIntegral.lean`, `Tensor/Schur.lean`,
+`Tensor/WeakDeriv.lean` (integration by parts for Lipschitz factors), `Tensor/Forms*.lean`,
+`Tensor/Projection*.lean`.
+
+Limits: uniform (per-direction) grids only; no convergence *rate* (needs an approximation
+estimate for smooth solutions and elliptic regularity on the box); `box_tensor_galerkin`
+uses `maxHeartbeats 400000`.
+
 ## Not done (see `docs/plan/00-overview.md`)
 
 * Closedness of the `L²` de Rham complex on domains other than boxes (star-shaped,
   Lipschitz): there `deRham_hodgeLaplace_wellPosed` still takes it as a hypothesis.
-* Meshes and inter-element continuity, degrees of freedom, unisolvence, and the construction
+* Simplicial meshes and non-uniform grids; inter-element continuity, degrees of freedom,
+  unisolvence, and the construction
   of bounded cochain projections: existence of a cochain projection is a hypothesis of the
   uniform stability and error estimate theorems, so these are not yet instantiated for a
   concrete finite element space. `DeRham/Whitney.lean` treats a single element (a bounded
