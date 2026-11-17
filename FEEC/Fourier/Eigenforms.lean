@@ -58,11 +58,27 @@ variable {e a b}
 
 theorem contDiff_eigForm (T : Fin k → Fin n) (m : Fin n → ℕ) :
     ContDiff ℝ (⊤ : ℕ∞) (eigForm e a b T m) := by
-  sorry
+  have h : ContDiff ℝ (⊤ : ℕ∞) (trigProd e a b (pat T) m) := by
+    unfold trigProd
+    refine contDiff_prod fun i _ => ?_
+    have : ContDiff ℝ (⊤ : ℕ∞) (trig1 (pat T i) (a i) (b i) (m i)) := by
+      unfold trig1; split_ifs
+      exacts [contDiff_trigS _, contDiff_trigC _]
+    exact this.comp ((innerSL ℝ (e i)).contDiff)
+  exact h.smul contDiff_const
 
 theorem memLp_eigForm (T : Fin k → Fin n) (m : Fin n → ℕ) :
     MemLp (fun x => Covector.ofAlt (eigForm e a b T m x)) 2 (volume.restrict (box e a b)) := by
-  sorry
+  haveI : IsFiniteMeasure (volume.restrict (box e a b)) :=
+    ⟨by simpa using volume_box_lt_top e a b⟩
+  refine MemLp.of_bound ?_ ‖Covector.ofAlt (dxT e k T)‖ ?_
+  · exact Covector.ofAlt.continuous.comp_aestronglyMeasurable
+      ((continuous_trigProd e a b (pat T) m).aestronglyMeasurable.smul_const _)
+  · refine Filter.Eventually.of_forall fun x => ?_
+    simp only [eigForm, map_smul, norm_smul, Real.norm_eq_abs]
+    calc _ ≤ 1 * ‖Covector.ofAlt (dxT e k T)‖ := by
+          gcongr; exact abs_trigProd_le e a b _ m x
+      _ = _ := one_mul _
 
 variable (e a b) in
 /-- The class of an eigenform in `L²Λᵏ`. -/
@@ -82,11 +98,31 @@ noncomputable def coef (w : L2Form (box e a b) k) (m : Fin n → ℕ) : Covector
 
 theorem coeFn_eigLp (T : Fin k → Fin n) (m : Fin n → ℕ) :
     eigLp e a b T m =ᵐ[volume.restrict (box e a b)]
-      fun x => Covector.ofAlt (eigForm e a b T m x) := by
-  sorry
+      fun x => Covector.ofAlt (eigForm e a b T m x) :=
+  MemLp.coeFn_toLp _
 
-theorem normProd_pos (hab : ∀ i, a i < b i) (m : Fin n → ℕ) : 0 < normProd a b m := by
-  sorry
+theorem normProd_pos (hab : ∀ i, a i < b i) (m : Fin n → ℕ) : 0 < normProd a b m :=
+  Finset.prod_pos fun i _ => trigNormSq_pos (hab i) _
+
+theorem integral_trig1_mul {a' b' : ℝ} (hab : a' < b') (s : Bool) (m m' : ℕ) :
+    ∫ t in Set.Ioo a' b', trig1 s a' b' m t * trig1 s a' b' m' t =
+      if m = m' ∧ (s = true → m ≠ 0) then trigNormSq a' b' m else 0 := by
+  cases s
+  · simp only [trig1, Bool.false_eq_true, if_false, false_imp_iff, and_true]
+    exact integral_trigC_mul_trigC hab m m'
+  · simp only [trig1, if_true, true_imp_iff]
+    exact integral_trigS_mul_trigS hab m m'
+
+theorem pat_eq_true_iff' (T : Fin k → Fin n) (i : Fin n) : pat T i = true ↔ ∃ p, T p = i := by
+  simp [pat]
+
+theorem pat_eq_of_inner_ne_zero_aux {S T : Fin k → Fin n}
+    (h : ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ ≠ 0) : pat S = pat T := by
+  have hr : Set.range S = Set.range T := by
+    by_contra hne
+    exact h (inner_dxT_eq_zero_of_range_ne e hne)
+  funext i
+  rw [Bool.eq_iff_iff, pat_eq_true_iff', pat_eq_true_iff', ← Set.mem_range, ← Set.mem_range, hr]
 
 /-- Pairing of eigenforms. -/
 theorem inner_eigLp (hab : ∀ i, a i < b i) (S T : Fin k → Fin n) (m m' : Fin n → ℕ) :
@@ -94,7 +130,45 @@ theorem inner_eigLp (hab : ∀ i, a i < b i) (S T : Fin k → Fin n) (m m' : Fin
       if m = m' ∧ (∀ p, m (S p) ≠ 0) then
         ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ * normProd a b m
       else 0 := by
-  sorry
+  rw [L2.inner_def]
+  have h1 : ∀ᵐ x ∂(volume.restrict (box e a b)),
+      ⟪(eigLp e a b S m : L2Form (box e a b) k) x, (eigLp e a b T m' : L2Form (box e a b) k) x⟫ =
+        (∏ i, (trig1 (pat S i) (a i) (b i) (m i) ⟪e i, x⟫ *
+            trig1 (pat T i) (a i) (b i) (m' i) ⟪e i, x⟫)) *
+          ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ := by
+    filter_upwards [coeFn_eigLp (e := e) (a := a) (b := b) S m,
+      coeFn_eigLp (e := e) (a := a) (b := b) T m'] with x h2 h3
+    rw [h2, h3]
+    simp only [eigForm, map_smul, real_inner_smul_left, real_inner_smul_right,
+      Finset.prod_mul_distrib]
+    unfold trigProd
+    ring
+  rw [integral_congr_ae h1, integral_mul_const,
+    integral_box_prod e a b (fun i t => trig1 (pat S i) (a i) (b i) (m i) t *
+      trig1 (pat T i) (a i) (b i) (m' i) t), mul_comm]
+  by_cases h : ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ = 0
+  · simp [h]
+  · have hp : pat S = pat T := pat_eq_of_inner_ne_zero_aux (e := e) h
+    simp only [integral_trig1_mul (hab _)]
+    rw [Finset.prod_ite_zero]
+    by_cases hc : m = m' ∧ (∀ p, m (S p) ≠ 0)
+    · have : ∀ i ∈ Finset.univ, (m i = m' i ∧ (pat T i = true → m i ≠ 0)) := by
+        intro i _
+        refine ⟨congrFun hc.1 i, fun hi => ?_⟩
+        rw [← hp, pat_eq_true_iff'] at hi
+        obtain ⟨p, rfl⟩ := hi
+        exact hc.2 p
+      rw [if_pos this, if_pos hc]
+      obtain ⟨rfl, _⟩ := hc
+      rfl
+    · rw [if_neg hc, if_neg]
+      · simp
+      · intro hall
+        apply hc
+        refine ⟨funext fun i => (hall i (Finset.mem_univ i)).1, fun p => ?_⟩
+        have := (hall (S p) (Finset.mem_univ _)).2
+        rw [← hp, pat_eq_true_iff'] at this
+        exact this ⟨p, rfl⟩
 
 theorem inner_synth (hab : ∀ i, a i < b i) (w : L2Form (box e a b) k) (m : Fin n → ℕ) (α : Covector E k) :
     ⟪w, synth e a b m α⟫ = normProd a b m * ⟪coef e a b w m, α⟫ := by
