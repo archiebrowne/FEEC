@@ -138,7 +138,7 @@ theorem vecCons_removeNth (α : E [⋀^Fin (k + 1)]→L[ℝ] ℝ) (v : Fin (k + 
   have : ((-1 : ℝ) ^ (j : ℕ)) * ((-1 : ℝ) ^ (j : ℕ)) = 1 := by
     rw [← mul_pow]; simp
   push_cast
-  rw [← mul_assoc, this, one_mul]
+  try rfl
 
 /-- `∑ᵢ eᵢ♭ ∧ (eᵢ ⌟ α) = (deg α) α` for an orthonormal basis. -/
 theorem sum_wedgeLeft_curryLeft {ι : Type*} [Fintype ι] (b : OrthonormalBasis ι ℝ E)
@@ -152,12 +152,10 @@ theorem sum_wedgeLeft_curryLeft {ι : Type*} [Fintype ι] (b : OrthonormalBasis 
   have h1 : ∀ j : Fin (k + 1), ∑ i, (-1 : ℝ) ^ (j : ℕ) *
       (⟪b i, v j⟫ * α (Matrix.vecCons (b i) (j.removeNth v))) = α v := by
     intro j
-    simp only [← mul_assoc, mul_comm ((-1 : ℝ) ^ (j : ℕ))]
-    simp only [mul_assoc, ← Finset.mul_sum]
-    rw [sum_inner_basis b α (v j) (j.removeNth v), vecCons_removeNth]
+    rw [← Finset.mul_sum, sum_inner_basis b α (v j) (j.removeNth v), vecCons_removeNth]
     have : ((-1 : ℝ) ^ (j : ℕ)) * ((-1 : ℝ) ^ (j : ℕ)) = 1 := by
       rw [← mul_pow]; simp
-    rw [← mul_assoc, mul_comm _ ((-1 : ℝ) ^ (j : ℕ)), mul_assoc, this, one_mul]
+    rw [← mul_assoc, this, one_mul]
   simp only [h1, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
   push_cast; ring
 
@@ -222,18 +220,174 @@ theorem curryLeft_dxT_of_not_mem {i : Fin n} {T : Fin (k + 1) → Fin n}
     rw [dxT_succ, curryLeft_wedgeLeft, ih h', e.orthonormal.inner_eq_zero (fun hh => h ⟨0, hh⟩)]
     simp
 
+/-- The span of the basis covectors of tuples with values in `R`. -/
+noncomputable def UR (R : Set (Fin n)) (k : ℕ) : Submodule ℝ (E [⋀^Fin k]→L[ℝ] ℝ) :=
+  Submodule.span ℝ {a | ∃ T : Fin k → Fin n, Set.range T ⊆ R ∧ a = dxT e k T}
+
+theorem dxT_mem_UR {R : Set (Fin n)} {T : Fin k → Fin n} (h : Set.range T ⊆ R) :
+    dxT e k T ∈ UR e R k :=
+  Submodule.subset_span ⟨T, h, rfl⟩
+
+theorem wedgeLeft_mem_UR {R : Set (Fin n)} {j : Fin n} (hj : j ∈ R)
+    {a : E [⋀^Fin k]→L[ℝ] ℝ} (ha : a ∈ UR e R k) : wedgeLeft (e j) a ∈ UR e R (k + 1) := by
+  induction ha using Submodule.span_induction with
+  | mem x hx =>
+    obtain ⟨T, hT, rfl⟩ := hx
+    rw [wedgeLeft_dxT]
+    refine dxT_mem_UR e ?_
+    rintro _ ⟨p, rfl⟩
+    refine Fin.cases ?_ (fun q => ?_) p
+    · simpa using hj
+    · simpa using hT ⟨q, rfl⟩
+  | zero => simp
+  | add x y _ _ hx hy => rw [map_add]; exact add_mem hx hy
+  | smul c x _ hx => rw [map_smul]; exact Submodule.smul_mem _ _ hx
+
+theorem curryLeft_add' (a b : E [⋀^Fin (k + 1)]→L[ℝ] ℝ) (u : E) :
+    (a + b).curryLeft u = a.curryLeft u + b.curryLeft u := by
+  ext v; simp [ContinuousAlternatingMap.curryLeft_apply_apply]
+
+theorem curryLeft_smul' (c : ℝ) (a : E [⋀^Fin (k + 1)]→L[ℝ] ℝ) (u : E) :
+    (c • a).curryLeft u = c • a.curryLeft u := by
+  ext v; simp [ContinuousAlternatingMap.curryLeft_apply_apply]
+
+theorem curryLeft_dxT_mem_UR {R : Set (Fin n)} (T : Fin (k + 1) → Fin n)
+    (hT : Set.range T ⊆ R) (i : Fin n) : (dxT e (k + 1) T).curryLeft (e i) ∈ UR e R k := by
+  induction k with
+  | zero =>
+    rw [dxT_succ, curryLeft_wedgeLeft_zero]
+    exact Submodule.smul_mem _ _ (dxT_mem_UR e (by intro x ⟨p, _⟩; exact p.elim0))
+  | succ k ih =>
+    have h1 : Set.range (Fin.tail T) ⊆ R := by
+      rintro _ ⟨q, rfl⟩; exact hT ⟨q.succ, rfl⟩
+    rw [dxT_succ, curryLeft_wedgeLeft]
+    refine sub_mem (Submodule.smul_mem _ _ (dxT_mem_UR e h1)) ?_
+    exact wedgeLeft_mem_UR e (hT ⟨0, rfl⟩) (ih _ h1)
+
+theorem curryLeft_mem_UR {R : Set (Fin n)} {β : E [⋀^Fin (k + 1)]→L[ℝ] ℝ}
+    (hβ : β ∈ UR e R (k + 1)) (i : Fin n) : β.curryLeft (e i) ∈ UR e R k ∧
+      (i ∉ R → β.curryLeft (e i) = 0) := by
+  induction hβ using Submodule.span_induction with
+  | mem x hx =>
+    obtain ⟨T, hT, rfl⟩ := hx
+    refine ⟨curryLeft_dxT_mem_UR e T hT i, fun hi => curryLeft_dxT_of_not_mem e ?_⟩
+    exact fun ⟨p, hp⟩ => hi (hp ▸ hT ⟨p, rfl⟩)
+  | zero => simp [ContinuousAlternatingMap.curryLeft_apply_apply]
+  | add x y _ _ hx hy =>
+    rw [curryLeft_add']
+    exact ⟨add_mem hx.1 hy.1, fun hi => by rw [hx.2 hi, hy.2 hi, add_zero]⟩
+  | smul c x _ hx =>
+    rw [curryLeft_smul']
+    exact ⟨Submodule.smul_mem _ _ hx.1, fun hi => by rw [hx.2 hi, smul_zero]⟩
+
+theorem range_subset_of_inner_ne {R : Set (Fin n)} :
+    ∀ (k : ℕ) (S : Fin k → Fin n) (β : E [⋀^Fin k]→L[ℝ] ℝ), β ∈ UR e R k →
+      ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt β⟫ ≠ 0 → Set.range S ⊆ R := by
+  intro k
+  induction k with
+  | zero => intro S β _ _; rintro _ ⟨p, _⟩; exact p.elim0
+  | succ k ih =>
+    intro S β hβ hne
+    rw [dxT_succ, inner_wedgeLeft] at hne
+    have hc : β.curryLeft (e (S 0)) ≠ 0 := by
+      intro h0; rw [h0] at hne; simp at hne
+    have hS0 : S 0 ∈ R := by
+      by_contra hn; exact hc ((curryLeft_mem_UR e hβ _).2 hn)
+    have ht := ih (Fin.tail S) _ (curryLeft_mem_UR e hβ _).1 hne
+    rintro _ ⟨p, rfl⟩
+    refine Fin.cases hS0 (fun q => ht ⟨q, rfl⟩) p
+
 /-- Basis covectors of tuples with different ranges are orthogonal. -/
 theorem inner_dxT_eq_zero_of_range_ne {S T : Fin k → Fin n} (h : Set.range S ≠ Set.range T) :
     ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ = 0 := by
-  sorry
+  by_contra hne
+  apply h
+  refine Set.Subset.antisymm
+    (range_subset_of_inner_ne e k S _ (dxT_mem_UR e (subset_refl _)) hne) ?_
+  refine range_subset_of_inner_ne e k T _ (dxT_mem_UR e (subset_refl _)) ?_
+  rwa [real_inner_comm]
+
+theorem inner_deg_zero (α β : E [⋀^Fin 0]→L[ℝ] ℝ) :
+    ⟪Covector.ofAlt α, Covector.ofAlt β⟫ = α 0 * β 0 := by
+  rw [Covector.inner_def]
+  simp [Covector.coeff_ofAlt]
+  congr 1 <;> congr 1 <;> exact Subsingleton.elim _ _
+
+theorem inner_dxT_zero (T : Fin 0 → Fin n) (α : E [⋀^Fin 0]→L[ℝ] ℝ) :
+    ⟪Covector.ofAlt α, Covector.ofAlt (dxT e 0 T)⟫ = α 0 := by
+  rw [inner_deg_zero]; simp [dxT]
 
 /-- Resolution of the identity over all tuples. -/
 theorem sum_inner_dxT_smul (α : E [⋀^Fin k]→L[ℝ] ℝ) :
     ((k.factorial : ℝ))⁻¹ • ∑ T : Fin k → Fin n,
       ⟪Covector.ofAlt α, Covector.ofAlt (dxT e k T)⟫ • dxT e k T = α := by
-  sorry
+  induction k with
+  | zero =>
+    ext v
+    have hv : v = 0 := Subsingleton.elim _ _
+    subst hv
+    simp
+    rw [inner_dxT_zero]
+    simp [dxT]
+  | succ k ih =>
+    have hc : ∀ (i : Fin n) (T : Fin k → Fin n),
+        ⟪Covector.ofAlt (α.curryLeft (e i)), Covector.ofAlt (dxT e k T)⟫ =
+          ⟪Covector.ofAlt α, Covector.ofAlt (dxT e (k + 1) (Fin.cons i T))⟫ := by
+      intro i T
+      rw [← wedgeLeft_dxT, ← real_inner_comm (Covector.ofAlt α), inner_wedgeLeft, real_inner_comm]
+    have h1 := sum_wedgeLeft_curryLeft e α
+    have h2 : ∀ i, wedgeLeft (e i) (α.curryLeft (e i)) = (k.factorial : ℝ)⁻¹ •
+        ∑ T : Fin k → Fin n, ⟪Covector.ofAlt α, Covector.ofAlt (dxT e (k + 1) (Fin.cons i T))⟫ •
+          dxT e (k + 1) (Fin.cons i T) := by
+      intro i
+      conv_lhs => rw [← ih (α.curryLeft (e i))]
+      rw [map_smul, map_sum]
+      simp only [map_smul, hc, wedgeLeft_dxT]
+    simp only [h2, ← Finset.smul_sum] at h1
+    have h3 : ∑ T' : Fin (k + 1) → Fin n,
+        ⟪Covector.ofAlt α, Covector.ofAlt (dxT e (k + 1) T')⟫ • dxT e (k + 1) T' =
+        ∑ i : Fin n, ∑ T : Fin k → Fin n,
+          ⟪Covector.ofAlt α, Covector.ofAlt (dxT e (k + 1) (Fin.cons i T))⟫ •
+            dxT e (k + 1) (Fin.cons i T) := by
+      rw [← (Fin.consEquiv (fun _ => Fin n)).sum_comp, Fintype.sum_prod_type]
+      rfl
+    rw [h3, Nat.factorial_succ]
+    have hk : (k.factorial : ℝ) ≠ 0 := by positivity
+    have h5 := congrArg (fun x => (k.factorial : ℝ) • x) h1
+    simp only [Finset.smul_sum, smul_smul, ← mul_assoc, mul_inv_cancel₀ hk, one_mul] at h5
+    rw [h5, smul_smul]
+    push_cast
+    have hk1 : ((k : ℝ) + 1) ≠ 0 := by positivity
+    have : (((k : ℝ) + 1) * k.factorial)⁻¹ * (k.factorial * ((k : ℝ) + 1)) = 1 := by
+      field_simp
+    rw [this, one_smul]
 
 theorem norm_ofAlt_dxT_le (T : Fin k → Fin n) : ‖Covector.ofAlt (dxT e k T)‖ ≤ 1 := by
-  sorry
+  have key : ∀ (k : ℕ) (T : Fin k → Fin n),
+      ⟪Covector.ofAlt (dxT e k T), Covector.ofAlt (dxT e k T)⟫ ≤ 1 := by
+    intro k
+    induction k with
+    | zero => intro T; rw [inner_dxT_zero]; simp [dxT]
+    | succ k ih =>
+      intro T
+      have hee : ⟪e (T 0), e (T 0)⟫ = 1 := by simp
+      have hD := ih (Fin.tail T)
+      rw [dxT_succ] at *
+      set D := dxT e k (Fin.tail T)
+      rw [inner_wedgeLeft]
+      cases k with
+      | zero =>
+        rw [curryLeft_wedgeLeft_zero, hee, one_smul]; exact hD
+      | succ k =>
+        rw [curryLeft_wedgeLeft, hee, one_smul, map_sub, inner_sub_right]
+        have : ⟪Covector.ofAlt D, Covector.ofAlt (wedgeLeft (e (T 0)) (D.curryLeft (e (T 0))))⟫
+            = ⟪Covector.ofAlt (D.curryLeft (e (T 0))), Covector.ofAlt (D.curryLeft (e (T 0)))⟫ := by
+          rw [real_inner_comm, inner_wedgeLeft]
+        rw [this]
+        have := real_inner_self_nonneg (x := Covector.ofAlt (D.curryLeft (e (T 0))))
+        linarith
+  have h := key k T
+  rw [real_inner_self_eq_norm_sq] at h
+  nlinarith [norm_nonneg (Covector.ofAlt (dxT e k T))]
 
 end FEEC
