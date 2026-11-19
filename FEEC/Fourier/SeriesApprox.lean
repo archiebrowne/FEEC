@@ -43,7 +43,7 @@ theorem contDiff_synthFun (M : Finset (Fin n → ℕ)) (c : (Fin n → ℕ) → 
 theorem toLp_synthFun (hab : ∀ i, a i < b i) (M : Finset (Fin n → ℕ))
     (c : (Fin n → ℕ) → Covector E k) :
     (memLp_of_continuous_box e a b
-      (Covector.ofAlt.continuous.comp (contDiff_synthFun M c).continuous)).toLp _ =
+      (Covector.ofAlt.continuous.comp (contDiff_synthFun (e := e) (a := a) (b := b) M c).continuous)).toLp _ =
       ∑ m ∈ M, synth e a b m (c m) := by
   sorry
 

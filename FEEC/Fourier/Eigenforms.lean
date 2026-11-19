@@ -149,7 +149,7 @@ theorem inner_eigLp (hab : ∀ i, a i < b i) (S T : Fin k → Fin n) (m m' : Fin
   by_cases h : ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ = 0
   · simp [h]
   · have hp : pat S = pat T := pat_eq_of_inner_ne_zero_aux (e := e) h
-    simp only [integral_trig1_mul (hab _)]
+    simp only [hp, integral_trig1_mul (hab _)]
     rw [Finset.prod_ite_zero]
     by_cases hc : m = m' ∧ (∀ p, m (S p) ≠ 0)
     · have : ∀ i ∈ Finset.univ, (m i = m' i ∧ (pat T i = true → m i ≠ 0)) := by
@@ -170,48 +170,249 @@ theorem inner_eigLp (hab : ∀ i, a i < b i) (S T : Fin k → Fin n) (m m' : Fin
         rw [← hp, pat_eq_true_iff'] at this
         exact this ⟨p, rfl⟩
 
-theorem inner_synth (hab : ∀ i, a i < b i) (w : L2Form (box e a b) k) (m : Fin n → ℕ) (α : Covector E k) :
+theorem sum_inner_inner_dxT (β : Covector E k) (S : Fin k → Fin n) :
+    ∑ T : Fin k → Fin n, ⟪β, Covector.ofAlt (dxT e k T)⟫ *
+      ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ =
+        (k.factorial : ℝ) * ⟪β, Covector.ofAlt (dxT e k S)⟫ := by
+  have h := sum_inner_dxT_smul e β.toAlt
+  simp only [Covector.ofAlt_toAlt] at h
+  have h2 := congrArg (fun x => ⟪Covector.ofAlt x, Covector.ofAlt (dxT e k S)⟫) h
+  simp only [map_smul, map_sum, real_inner_smul_left, sum_inner, Covector.ofAlt_toAlt] at h2
+  have hk : (k.factorial : ℝ) ≠ 0 := by positivity
+  rw [← h2, ← mul_assoc, mul_inv_cancel₀ hk, one_mul]
+  refine Finset.sum_congr rfl fun T _ => ?_
+  rw [real_inner_comm (Covector.ofAlt (dxT e k S))]
+
+theorem inner_synth (hab : ∀ i, a i < b i) (w : L2Form (box e a b) k) (m : Fin n → ℕ)
+    (α : Covector E k) :
     ⟪w, synth e a b m α⟫ = normProd a b m * ⟪coef e a b w m, α⟫ := by
-  sorry
+  have hN := (normProd_pos hab m).ne'
+  unfold synth coef
+  simp only [inner_smul_right, inner_sum, inner_smul_left, sum_inner, RCLike.conj_to_real]
+  rw [Finset.mul_sum, Finset.mul_sum, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun T _ => ?_
+  rw [real_inner_comm α]
+  field_simp
 
 theorem inner_synth_synth (hab : ∀ i, a i < b i) (m m' : Fin n → ℕ) (α β : Covector E k) :
     ⟪synth e a b m α, synth e a b m' β⟫ =
       if m = m' then normProd a b m * ⟪allow e m α, β⟫ else 0 := by
-  sorry
+  have hk : (k.factorial : ℝ) ≠ 0 := by positivity
+  unfold synth allow
+  simp only [inner_smul_right, inner_smul_left, inner_sum, sum_inner, RCLike.conj_to_real,
+    inner_eigLp hab]
+  by_cases h : m = m'
+  · subst h
+    simp only [if_true]
+    have key : ∀ S : Fin k → Fin n, ∑ T : Fin k → Fin n, ⟪β, Covector.ofAlt (dxT e k T)⟫ *
+        (if (∀ p, m (S p) ≠ 0) then ⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k T)⟫ *
+          normProd a b m else 0) =
+        if (∀ p, m (S p) ≠ 0) then normProd a b m * ((k.factorial : ℝ) *
+          ⟪β, Covector.ofAlt (dxT e k S)⟫) else 0 := by
+      intro S
+      split_ifs
+      · rw [← sum_inner_inner_dxT (e := e) β S, Finset.mul_sum]
+        refine Finset.sum_congr rfl fun T _ => ?_
+        ring
+      · simp
+    simp only [Finset.mul_sum]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun S _ => ?_
+    by_cases hS : ∀ p, m (S p) ≠ 0
+    · have hk' := key S
+      simp only [hS, if_true, ne_eq, not_false_eq_true, true_and, implies_true] at hk' ⊢
+      have e1 : ∑ x : Fin k → Fin n, (k.factorial : ℝ)⁻¹ * (⟪β, Covector.ofAlt (dxT e k x)⟫ *
+          ((k.factorial : ℝ)⁻¹ * (⟪α, Covector.ofAlt (dxT e k S)⟫ *
+            (⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k x)⟫ * normProd a b m)))) =
+          (k.factorial : ℝ)⁻¹ * (k.factorial : ℝ)⁻¹ * ⟪α, Covector.ofAlt (dxT e k S)⟫ *
+            ∑ x : Fin k → Fin n, ⟪β, Covector.ofAlt (dxT e k x)⟫ *
+              (⟪Covector.ofAlt (dxT e k S), Covector.ofAlt (dxT e k x)⟫ * normProd a b m) := by
+        rw [Finset.mul_sum]
+        refine Finset.sum_congr rfl fun x _ => ?_
+        ring
+      rw [e1, hk', real_inner_comm β]
+      field_simp
+    · simp [hS]
+  · simp [h]
+
+variable (e) in
+/-- `allow` as a linear map. -/
+noncomputable def allowL (m : Fin n → ℕ) : Covector E k →ₗ[ℝ] Covector E k where
+  toFun := allow e m
+  map_add' α β := by
+    unfold allow
+    rw [← smul_add, ← Finset.sum_add_distrib]
+    congr 1
+    refine Finset.sum_congr rfl fun T _ => ?_
+    split_ifs
+    · rw [inner_add_left, add_smul]
+    · simp
+  map_smul' c α := by
+    show allow e m (c • α) = c • allow e m α
+    unfold allow
+    rw [smul_comm c]
+    congr 1
+    rw [Finset.smul_sum]
+    refine Finset.sum_congr rfl fun T _ => ?_
+    split_ifs
+    · rw [real_inner_smul_left, smul_smul]
+    · simp
+
+theorem allowL_apply (m : Fin n → ℕ) (α : Covector E k) : allowL e m α = allow e m α := rfl
+
+theorem eigLp_eq_zero_of_zero {T : Fin k → Fin n} {m : Fin n → ℕ} {p : Fin k}
+    (h : m (T p) = 0) : eigLp e a b T m = 0 := by
+  rw [Lp.eq_zero_iff_ae_eq_zero]
+  filter_upwards [coeFn_eigLp (e := e) (a := a) (b := b) T m] with x hx
+  rw [hx]
+  have : trigProd e a b (pat T) m x = 0 := by
+    unfold trigProd
+    refine Finset.prod_eq_zero (Finset.mem_univ (T p)) ?_
+    have : pat T (T p) = true := (pat_eq_true_iff' T _).2 ⟨p, rfl⟩
+    simp [trig1, this, h, trigS_zero]
+  simp [eigForm, this]
+
+theorem allow_dxT {m : Fin n → ℕ} {T₀ : Fin k → Fin n} (h : ∀ p, m (T₀ p) ≠ 0) :
+    allow e m (Covector.ofAlt (dxT e k T₀)) = Covector.ofAlt (dxT e k T₀) := by
+  have key := congrArg Covector.ofAlt (sum_inner_dxT_smul e (dxT e k T₀))
+  simp only [map_smul, map_sum] at key
+  refine Eq.trans ?_ key
+  unfold allow
+  congr 1
+  refine Finset.sum_congr rfl fun S _ => ?_
+  by_cases hS : ⟪Covector.ofAlt (dxT e k T₀), Covector.ofAlt (dxT e k S)⟫ = 0
+  · simp [hS]
+  · have hr : Set.range T₀ = Set.range S := by
+      by_contra hne
+      exact hS (inner_dxT_eq_zero_of_range_ne e hne)
+    have : ∀ p, m (S p) ≠ 0 := by
+      intro p
+      have : S p ∈ Set.range T₀ := hr ▸ ⟨p, rfl⟩
+      obtain ⟨q, hq⟩ := this
+      rw [← hq]; exact h q
+    rw [if_pos this]
 
 theorem allow_coef (hab : ∀ i, a i < b i) (w : L2Form (box e a b) k) (m : Fin n → ℕ) :
     allow e m (coef e a b w m) = coef e a b w m := by
-  sorry
+  rw [← allowL_apply]
+  unfold coef
+  rw [map_smul, map_sum]
+  congr 1
+  refine Finset.sum_congr rfl fun T _ => ?_
+  rw [map_smul, allowL_apply]
+  by_cases hT : ∀ p, m (T p) ≠ 0
+  · rw [allow_dxT hT]
+  · push Not at hT
+    obtain ⟨p, hp⟩ := hT
+    rw [eigLp_eq_zero_of_zero (e := e) (a := a) (b := b) hp]
+    simp
 
 theorem coef_synth (hab : ∀ i, a i < b i) (m m' : Fin n → ℕ) (α : Covector E k) :
     coef e a b (synth e a b m α) m' = if m = m' then allow e m α else 0 := by
-  sorry
+  refine ext_inner_right ℝ fun β => ?_
+  have h1 := inner_synth hab (synth e a b m α) m' β
+  rw [inner_synth_synth hab] at h1
+  have hN := (normProd_pos (a := a) (b := b) hab m').ne'
+  by_cases h : m = m'
+  · subst h
+    simp only [if_true] at h1 ⊢
+    exact (mul_left_cancel₀ hN h1).symm
+  · simp only [h, if_false] at h1 ⊢
+    rw [inner_zero_left]
+    rcases mul_eq_zero.1 h1.symm with h2 | h2
+    · exact absurd h2 hN
+    · exact h2
 
 /-- `ξ ∧ ·` and `ξ ⌟ ·` are adjoint. -/
 theorem inner_cwedge (v : E) (α : Covector E k) (β : Covector E (k + 1)) :
     ⟪cwedge v α, β⟫ = ⟪α, ccontr v β⟫ := by
-  sorry
+  have := inner_wedgeLeft v α.toAlt β.toAlt
+  simpa [cwedge, ccontr] using this
 
 /-- `v ⌟ (v ∧ α) + v ∧ (v ⌟ α) = |v|² α`. -/
 theorem ccontr_cwedge_add (v : E) (α : Covector E (k + 1)) :
     ccontr v (cwedge v α) + cwedge v (ccontr v α) = (‖v‖ ^ 2) • α := by
-  sorry
+  unfold ccontr cwedge
+  rw [Covector.toAlt_ofAlt, curryLeft_wedgeLeft, Covector.toAlt_ofAlt, ← map_add]
+  have : ‖v‖ ^ 2 = ⟪v, v⟫ := (real_inner_self_eq_norm_sq v).symm
+  rw [this, sub_add_cancel]
+  conv_rhs => rw [← Covector.ofAlt_toAlt α]
+  rw [map_smul]
+
+theorem norm_sq_cwedge_add (v : E) (α : Covector E (k + 1)) :
+    ‖cwedge v α‖ ^ 2 + ‖ccontr v α‖ ^ 2 = ‖v‖ ^ 2 * ‖α‖ ^ 2 := by
+  have h := congrArg (fun x => ⟪α, x⟫) (ccontr_cwedge_add v α)
+  simp only [inner_add_right, real_inner_smul_right, real_inner_self_eq_norm_sq] at h
+  have h2 : ⟪α, cwedge v (ccontr v α)⟫ = ⟪ccontr v α, ccontr v α⟫ := by
+    rw [real_inner_comm (cwedge v (ccontr v α)) α, inner_cwedge]
+  have h1 : ⟪α, ccontr v (cwedge v α)⟫ = ‖cwedge v α‖ ^ 2 := by
+    rw [← inner_cwedge, real_inner_self_eq_norm_sq]
+  rw [h1, h2, real_inner_self_eq_norm_sq] at h
+  exact h
 
 theorem norm_cwedge_le (v : E) (α : Covector E k) : ‖cwedge v α‖ ≤ ‖v‖ * ‖α‖ := by
-  sorry
+  rw [← pow_le_pow_iff_left₀ (norm_nonneg _) (by positivity) two_ne_zero, mul_pow]
+  cases k with
+  | zero =>
+    have h1 : ‖cwedge v α‖ ^ 2 = ⟪α, ccontr v (cwedge v α)⟫ := by
+      rw [← real_inner_self_eq_norm_sq, inner_cwedge]
+    have h2 : ccontr v (cwedge v α) = (‖v‖ ^ 2) • α := by
+      unfold ccontr cwedge
+      rw [Covector.toAlt_ofAlt, curryLeft_wedgeLeft_zero, real_inner_self_eq_norm_sq]
+      conv_rhs => rw [← Covector.ofAlt_toAlt α]
+      rw [map_smul]
+    rw [h1, h2, real_inner_smul_right, real_inner_self_eq_norm_sq]
+  | succ k =>
+    have := norm_sq_cwedge_add v α
+    nlinarith [sq_nonneg ‖ccontr v α‖]
 
 theorem norm_ccontr_le (v : E) (α : Covector E (k + 1)) : ‖ccontr v α‖ ≤ ‖v‖ * ‖α‖ := by
-  sorry
+  rw [← pow_le_pow_iff_left₀ (norm_nonneg _) (by positivity) two_ne_zero, mul_pow]
+  have := norm_sq_cwedge_add v α
+  nlinarith [sq_nonneg ‖cwedge v α‖]
 
 /-- Nonzero frequency vectors are bounded below. -/
 theorem exists_norm_xi_ge (hab : ∀ i, a i < b i) :
     ∃ c > 0, ∀ m : Fin n → ℕ, m ≠ 0 → c ≤ ‖xi e a b m‖ := by
-  sorry
+  have hs : 0 ≤ ∑ i, (b i - a i) := Finset.sum_nonneg fun i _ => (sub_pos.2 (hab i)).le
+  refine ⟨Real.pi / (1 + ∑ i, (b i - a i)), by positivity, ?_⟩
+  intro m hm
+  obtain ⟨i, hi⟩ : ∃ i, m i ≠ 0 := by
+    by_contra h
+    push Not at h
+    exact hm (funext h)
+  have h1 : |⟪e i, xi e a b m⟫| ≤ ‖xi e a b m‖ := by
+    calc _ ≤ ‖e i‖ * ‖xi e a b m‖ := abs_real_inner_le_norm _ _
+      _ = _ := by rw [e.orthonormal.1 i, one_mul]
+  have h2 : ⟪e i, xi e a b m⟫ = -freq (a i) (b i) (m i) := by
+    unfold xi
+    rw [inner_neg_right, inner_sum, Finset.sum_eq_single i]
+    · rw [inner_smul_right, real_inner_self_eq_norm_sq, e.orthonormal.1 i]; simp
+    · intro j _ hj
+      rw [inner_smul_right, e.orthonormal.inner_eq_zero (Ne.symm hj), mul_zero]
+    · simp
+  have hba := sub_pos.2 (hab i)
+  have hm1 : (1 : ℝ) ≤ m i := by exact_mod_cast Nat.pos_of_ne_zero hi
+  have h3 : 0 ≤ freq (a i) (b i) (m i) := by unfold freq; positivity
+  have h4 : Real.pi / (b i - a i) ≤ freq (a i) (b i) (m i) := by
+    unfold freq
+    exact div_le_div_of_nonneg_right (by nlinarith [Real.pi_pos]) hba.le
+  have h5 : b i - a i ≤ 1 + ∑ i, (b i - a i) := by
+    have := Finset.single_le_sum (f := fun i => b i - a i) (fun i _ => (sub_pos.2 (hab i)).le)
+      (Finset.mem_univ i)
+    linarith
+  have h6 : Real.pi / (1 + ∑ i, (b i - a i)) ≤ Real.pi / (b i - a i) :=
+    div_le_div_of_nonneg_left Real.pi_pos.le hba h5
+  rw [h2, abs_neg, abs_of_nonneg h3] at h1
+  linarith
 
 /-- In positive degree, a coefficient can only be nonzero at a nonzero frequency. -/
 theorem coef_zero_freq (hab : ∀ i, a i < b i) (w : L2Form (box e a b) (k + 1)) :
     coef e a b w 0 = 0 := by
-  sorry
+  unfold coef
+  have : ∀ T : Fin (k + 1) → Fin n, eigLp e a b T 0 = 0 := fun T =>
+    eigLp_eq_zero_of_zero (e := e) (a := a) (b := b) (p := 0) rfl
+  simp [this]
 
 end Fourier
 
