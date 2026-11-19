@@ -22,3 +22,4 @@ import FEEC.Interval.Bridge
 import FEEC.Interval.Convergence
 import FEEC.DeRham.PoincareLemma
 import FEEC.Tensor.Main
+import FEEC.Fourier.Rate

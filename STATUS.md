@@ -100,6 +100,27 @@ Limits: uniform (per-direction) grids only; no convergence *rate* (needs an appr
 estimate for smooth solutions and elliptic regularity on the box); `box_tensor_galerkin`
 uses `maxHeartbeats 400000`.
 
+## Convergence rate on a box (plan: `docs/plan/07-rate.md`)
+
+`Fourier/Rate.lean`, `box_tensor_rate`: in the setting of `box_tensor_galerkin` (any
+dimension, any degree `k + 1`), there is `C` depending only on the box and `k` such that for
+every tensor-product grid with cell sizes `≤ h` and every **test form** `φ` (data `f = φ`)
+
+  `‖σ − σh‖ + ‖u − uh‖ + ‖p − ph‖ ≤ C h (‖φ‖ + ∑ᵢ ‖∂ᵢ φ‖)`.
+
+No hypothesis. Route: Part G's quasi-optimality with `τ = πσ`, `v = πu`; an approximation
+estimate `‖w − πw‖ ≤ C h N(w)` for a Fourier `H¹`-seminorm `N` (`SeriesApprox`,
+`Tensor/Approx*`, `CoordSchur`, `Ref1DApprox`); regularity of the solution in Fourier
+coefficients (`Regularity`, using `û = f̂/|ξ|²`); `N(φ) ≤ ∑ᵢ ‖∂ᵢφ‖` (`Data`). The Fourier
+analysis uses real cosine/sine eigenforms with the natural boundary conditions
+(`Trig1D`, `TrigDensity` — completeness via Stone–Weierstrass, `Eigenforms`, `Parseval`), and
+integration by parts against eigenforms for arbitrary `w ∈ HΛ` (`EigenDeriv`, cutoff +
+dominated convergence). No Sobolev spaces are used.
+
+Limits: data must be smooth with compact support in the box (the bound extends to its
+`H¹`-closure by continuity, not formalised; general `H¹` data would need Neumann-data
+regularity); uniform grids; `key_estimate` in `Rate.lean` uses `maxHeartbeats 400000`.
+
 ## Not done (see `docs/plan/00-overview.md`)
 
 * Closedness of the `L²` de Rham complex on domains other than boxes (star-shaped,
